@@ -1,49 +1,73 @@
-import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import SharedLayout from './SharedLayout';
-import { PrivateRoute } from 'services/PrivateRoute';
-import { PublicRoute } from 'services/PublicRoute';
-import { useFetchCurrentUserQuery } from 'redux/api';
-import { useSelector } from 'react-redux';
-import { getToken } from 'redux/authUser/authSelectors';
-import { MainSpinner } from './MainSpinner/MainSpinner';
+import { useDispatch, useSelector } from 'react-redux';
+import { Loader } from './Loading/Loading';
+import { lazy, useEffect, Suspense } from 'react';
+import * as authOperations from '../redux/auth/authOperations';
+import ResponsiveAppBar from './NavBar/NavBar';
+import { PublicRoute, PrivateRoute } from './CustomRoutes/CustomRoutes';
+import { useNavigate } from 'react-router-dom';
 
-const Home = lazy(() => import('pages/Home'));
-const ContactsPage = lazy(() => import('pages/ContactsPage'));
-const LoginPage = lazy(() => import('pages/LoginPage'));
-const RegisterPage = lazy(() => import('pages/RegisterPage'));
-const EditContactModal = lazy(() =>
-  import('./EditContactModal/EditContactModal')
-);
-const NotFoundPage = lazy(() => import('pages/NotFoundPage'));
+export const Home = lazy(() => import('./views/HomeView/HomeView'));
+export const Login = lazy(() => import('./views/LoginView/LoginView'));
+export const ContactBook = lazy(() => import('./Contacts/PhoneBook'));
+export const NotFound = lazy(() => import('./views/NotFound/NotFound'));
+export const Register = lazy(() => import('./views/RegisterView/RegisterView'));
 
 export const App = () => {
-  const token = useSelector(getToken);
+  const dispatch = useDispatch();
+  const pendingUserData = useSelector(state => state.auth.pendingUserData);
+  const currentPath = useSelector(state => state.auth.currentPath);
+  const navigate = useNavigate();
 
-  const { isFetching } = useFetchCurrentUserQuery(undefined, { skip: !token });
+  useEffect(() => {
+    dispatch(authOperations.fetchCurrentUser());
+    currentPath && navigate(currentPath);
+  }, [currentPath, dispatch, navigate]);
 
-  return !isFetching ? (
-    <Suspense fallback={<></>}>
-      <Routes>
-        <Route path="/" element={<SharedLayout />}>
-          <Route index element={<Home />} />
-
-          <Route path="/" element={<PublicRoute restricted />}>
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/login" element={<LoginPage />} />
-          </Route>
-
-          <Route path="contacts" element={<PrivateRoute />}>
-            <Route path="/contacts" element={<ContactsPage />}>
-              <Route path="edit/:contactId" element={<EditContactModal />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
-  ) : (
-    <MainSpinner />
+  return (
+    <>
+      {!pendingUserData && (
+        <>
+          <ResponsiveAppBar />
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <PublicRoute>
+                    <Home />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute path={'/'} restricted>
+                    <Register />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute path={'/'} restricted>
+                    <Login />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/contacts"
+                element={
+                  <PrivateRoute path={'/login'}>
+                    <ContactBook />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </>
+      )}
+    </>
   );
 };

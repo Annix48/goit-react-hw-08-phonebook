@@ -1,4 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit';
+import { authReducer } from './auth/authSlice';
+// import { contactReducer } from './contacts/contactSlice';
+import { modalSlice } from './contacts/modalSlice';
+import { filterSlice } from './contacts/filterSlice';
+import { contactsApi } from './contacts/createApi';
+
 import {
   persistStore,
   persistReducer,
@@ -10,28 +16,20 @@ import {
   REGISTER,
 } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import { contactsApi } from './api';
-import { authReducer } from './authUser/authSlice';
-import { contactsReducer } from './contacts/contactsSlice';
-import { authApi } from './api';
 
-// Auth Persist
 const authPersistConfig = {
-  key: 'auth',
+  key: 'userAuthMZ',
   storage,
-  whitelist: ['token'],
+  whitelist: ['token', 'currentPath'],
 };
-
-const persistedReducer = persistReducer(authPersistConfig, authReducer);
 
 export const store = configureStore({
   reducer: {
-    auth: persistedReducer,
-    contacts: contactsReducer,
+    auth: persistReducer(authPersistConfig, authReducer),
     [contactsApi.reducerPath]: contactsApi.reducer,
-    [authApi.reducerPath]: authApi.reducer,
+    [filterSlice.name]: filterSlice.reducer,
+    [modalSlice.name]: modalSlice.reducer,
   },
-
   middleware: getDefaultMiddleware => [
     ...getDefaultMiddleware({
       serializableCheck: {
@@ -39,8 +37,6 @@ export const store = configureStore({
       },
     }),
     contactsApi.middleware,
-    authApi.middleware,
   ],
 });
-
 export const persistor = persistStore(store);
